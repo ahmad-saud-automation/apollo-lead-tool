@@ -1,0 +1,15 @@
+# secrets — NEVER commit the API key
+backend/settings.json
+
+# generated run data
+backend/runs/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# node / frontend build
+frontend/node_modules/
+frontend/dist/
