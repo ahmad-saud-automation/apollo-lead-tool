@@ -228,3 +228,30 @@ def export(name: str):
 @app.get("/api/health")
 def health():
     return {"ok": True, "accounting_tag": ACCOUNTING_TAG}
+
+
+# ---------------------------------------------------------------- web UI
+WEBAPP = os.path.join(HERE, "webapp")
+
+
+def _ui(name: str, media: str):
+    path = os.path.join(WEBAPP, name)
+    if not os.path.exists(path):
+        raise HTTPException(404, f"{name} not found")
+    return FileResponse(path, media_type=media,
+                        headers={"Cache-Control": "no-store"})
+
+
+@app.get("/")
+def ui_index():
+    return _ui("index.html", "text/html")
+
+
+@app.get("/style.css")
+def ui_css():
+    return _ui("style.css", "text/css")
+
+
+@app.get("/app.js")
+def ui_js():
+    return _ui("app.js", "application/javascript")

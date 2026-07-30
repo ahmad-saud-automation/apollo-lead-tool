@@ -32,6 +32,30 @@ There's a hard credit cap. I set a maximum and it doesn't go past it, and it spe
 
 And it's safe to stop. If a run gets interrupted, restarting never re-charges a contact that was already revealed.
 
+![Preview, what a search would cost before anything is charged](docs/02-preview.png)
+
+That's the screen that matters. It's showing 1,902 people collapsing down to 88 firms after deduping and stripping out the ones I already have, and telling me the exact credit cost. Nothing is charged until I tick the confirm box.
+
+## The app
+
+Five screens, in the order you actually use them.
+
+**New search.** Build the filters by hand, or paste an Apollo search URL and it reads the filters straight out of it.
+
+![New search](docs/01-new-search.png)
+
+**Preview.** Free. People, then firms, then what it would cost.
+
+**Run.** Reveals emails one at a time with a live feed, a credit counter and a stop button. It checkpoints as it goes.
+
+**Results.** The leads, a title mix so I can sanity check who I actually got, and a CSV download.
+
+![Results](docs/03-results.png)
+
+**History.** Every past run, reopenable and re-downloadable.
+
+![History](docs/04-history.png)
+
 ## Running it
 
 ```
@@ -40,13 +64,20 @@ python -m pip install -r requirements.txt
 START_BACKEND.bat
 ```
 
-Then open `http://127.0.0.1:8000/docs`, which is FastAPI's built in page for trying each endpoint. The React front end is the next phase, so for now that's the interface.
+Then open `http://127.0.0.1:8000`. The API is also browsable at `/docs` if you'd rather drive it directly.
 
-First few steps in there:
+First time through:
 
-1. `POST /api/settings` with my Apollo master API key. It's saved to `backend/settings.json`, which is gitignored.
-2. `POST /api/preview` with a name and either filters or an Apollo URL. Free. Returns people, then firms, then the estimated credit cost and a sample.
-3. `POST /api/enrich` with a name, `max_credits` and `confirmed: true`. This one spends credits. It streams progress and resumes without re-charging.
+1. Settings tab, paste the Apollo master API key. It's saved to `backend/settings.json`, which is gitignored.
+2. New search, name the run and set your filters. Hit preview. Free.
+3. Check the number, set a credit cap, tick confirm, reveal.
+4. Results tab, download the CSV.
+
+The same steps over HTTP if you want to script it:
+
+1. `POST /api/settings` with the key.
+2. `POST /api/preview` with a name and either filters or an Apollo URL. Free.
+3. `POST /api/enrich` with a name, `max_credits` and `confirmed: true`. This one spends credits, streams progress, and resumes without re-charging.
 4. `GET /api/runs/{name}/export` to download the CSV.
 
 | Method | Path | Cost |
@@ -60,7 +91,11 @@ First few steps in there:
 
 ## Where it's at
 
-The backend engine is done. It's a FastAPI service wrapping the search, pick, enrich and suppression logic, and it's tested and runnable. The React UI with its five screens is next, and after that some polish: pasting an Apollo URL directly, MillionVerifier integration, saved presets.
+The engine and all five screens are built and working. The backend is a FastAPI service wrapping the search, pick, enrich and suppression logic, and the UI is served by the same process, so it's one thing to start rather than two.
+
+Still on my list: MillionVerifier integration for the addresses Apollo can't verify, and saved filter presets.
+
+The screenshots above are a demo dataset of invented firms, so the interface shows realistic volume without putting real companies or people in a public repo.
 
 `SPEC.md` has the full design if you want the detail.
 
