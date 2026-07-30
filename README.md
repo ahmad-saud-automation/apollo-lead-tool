@@ -1,81 +1,54 @@
 # Apollo Lead Tool
 
-**Every Apollo credit buys a real, unique decision-maker — never a duplicate, never someone you already have.**
+Every Apollo credit I spend buys a real firm I don't already have. That's the whole idea.
 
-## The problem this solves
+## Why I built it
 
-On Apollo, you pay a credit each time you reveal a verified email. The money leaks in two places:
+On Apollo you pay a credit each time you reveal a verified email, and I was losing that money in two places.
 
-- **Duplicate firms.** One accountancy firm often shows up as three or four
-  people — the owner, a partner, an office manager. Export the raw list and you
-  pay a credit for *each* of them, even though you only need to reach **one**
-  person at that firm.
-- **People you already have.** Re-run a search next month and you pay again for
-  firms already sitting in your CRM.
+The first is duplicates. One accountancy firm shows up three or four times, the owner, a partner, an office manager. Export the raw list and you're charged for each of them, even though you only ever need to reach one person at that firm.
 
-A real example: from **2,500 credits** you export **1,500 genuine firms** and
-**1,000 duplicates** — different contacts at firms you already counted. That's
-**1,000 credits gone** for zero new firms.
+The second is firms I already had. Re-run a similar search a month later and you pay all over again for companies sitting in my CRM.
 
-## How it saves the money
+Here's what that looked like in practice. Out of 2,500 credits I got 1,500 real firms and 1,000 duplicates, which were just different contacts at firms I'd already counted. A thousand credits gone for nothing new.
 
-Before spending a single credit, the tool does two things:
+## How it stops that
 
-1. **One decision-maker per firm.** It groups every result by company (even when
-   the name is written slightly differently — "Smith & Co Ltd" and "Smith and
-   Company" are treated as the same firm) and keeps only the **most senior**
-   contact — owner first, then founder, managing partner, director, and so on.
-   The rest are kept as free backups, not charged.
-2. **Skips firms you already own.** Point it at your existing leads and it
-   removes those firms up front, so you never pay twice for the same company.
+Before it spends a single credit, it does two things.
 
-In the example above, those 1,000 duplicate credits are simply never spent —
-they stay in your account for **1,000 more real firms**. Same budget, more
-genuine decision-makers, nothing wasted.
+**One decision maker per firm.** It groups results by company, and it's not fooled by naming, so "Smith & Co Ltd" and "Smith and Company" are treated as the same firm. Then it keeps only the most senior contact: owner first, then founder, managing partner, director, and so on. The others are kept as free backups rather than charged for.
 
-## You always see the cost before you spend
+**Skips firms I already own.** I point it at my existing leads and it strips those out up front, so I never pay twice for the same company.
 
-- **Free preview** — enter your search and it shows how many real firms you'll
-  get and exactly how many credits it will cost, with a 10-row sample, *before*
-  anything is charged.
-- **Hard credit cap** — set a maximum; it never goes over, and spends on your
-  most senior contacts first.
-- **Safe to stop and resume** — if a run is interrupted, restarting it never
-  re-charges a contact you already revealed.
+In that 2,500 credit example, the thousand duplicate credits simply never get spent. They stay in my account and go towards a thousand more real firms instead. Same budget, more actual companies.
 
----
+## Seeing the cost before paying it
 
-## For developers
+This was the part I cared most about getting right.
 
-Production-quality personal app: Apollo search → best-decision-maker per firm →
-verified emails, with credit caps / dry-run / resume. See `SPEC.md` for the full
-design.
+There's a free preview. I enter a search and it tells me how many real firms I'll end up with and exactly what it'll cost in credits, with a 10 row sample, before anything is charged.
 
-### Status
-- **Phase 1 — backend engine (DONE):** FastAPI service wrapping the tested
-  search / pick / enrich / suppression logic. Runnable + tested.
-- **Phase 2 — React UI (next):** the 5 screens.
-- Phase 3 — polish (URL-paste UX, MillionVerifier, presets).
+There's a hard credit cap. I set a maximum and it doesn't go past it, and it spends on the most senior contacts first so the budget goes to the best people.
 
-### Run the backend
+And it's safe to stop. If a run gets interrupted, restarting never re-charges a contact that was already revealed.
+
+## Running it
+
 ```
 cd backend
-python -m pip install -r requirements.txt      # first time only
-START_BACKEND.bat                               # or: uvicorn app:app --host 127.0.0.1 --port 8000
+python -m pip install -r requirements.txt
+START_BACKEND.bat
 ```
-Then open **http://127.0.0.1:8000/docs** — an interactive page to try every
-endpoint (this is FastAPI's built-in UI; the React app comes in Phase 2).
 
-### First steps in /docs
-1. `POST /api/settings` — paste your Apollo **master** API key (saved locally to
-   `backend/settings.json`, which is gitignored).
-2. `POST /api/preview` — give a `name` and either `filters` or an `apollo_url`.
-   FREE: returns people → firms → estimated credit cost + a 10-row sample.
-3. `POST /api/enrich` — `name`, `max_credits`, `confirmed: true`. SPENDS CREDITS;
-   streams progress; resumes without re-charging.
-4. `GET /api/runs/{name}/export` — download the finished CSV.
+Then open `http://127.0.0.1:8000/docs`, which is FastAPI's built in page for trying each endpoint. The React front end is the next phase, so for now that's the interface.
 
-### Endpoints
+First few steps in there:
+
+1. `POST /api/settings` with my Apollo master API key. It's saved to `backend/settings.json`, which is gitignored.
+2. `POST /api/preview` with a name and either filters or an Apollo URL. Free. Returns people, then firms, then the estimated credit cost and a sample.
+3. `POST /api/enrich` with a name, `max_credits` and `confirmed: true`. This one spends credits. It streams progress and resumes without re-charging.
+4. `GET /api/runs/{name}/export` to download the CSV.
+
 | Method | Path | Cost |
 |---|---|---|
 | POST | /api/preview | free |
@@ -85,10 +58,17 @@ endpoint (this is FastAPI's built-in UI; the React app comes in Phase 2).
 | GET | /api/runs/{name}/export | free |
 | GET/POST | /api/settings | free |
 
-### Safety (built into the engine)
-- Dry-run preview before any spend; enrich needs `confirmed:true` + a `max_credits` cap.
-- Resume by person_id — never re-charges an already-revealed contact.
-- Checkpoint to disk every 10 reveals; seniority-ordered spend.
-- Key stored locally, gitignored; server binds to 127.0.0.1 only.
-- The de-duplication and suppression logic lives in `backend/core/picker.py`
-  and `backend/core/suppression.py`.
+## Where it's at
+
+The backend engine is done. It's a FastAPI service wrapping the search, pick, enrich and suppression logic, and it's tested and runnable. The React UI with its five screens is next, and after that some polish: pasting an Apollo URL directly, MillionVerifier integration, saved presets.
+
+`SPEC.md` has the full design if you want the detail.
+
+## Safety, built into the engine rather than bolted on
+
+- Dry run preview before any spend, and enrich won't move without `confirmed: true` and a credit cap.
+- Resume works by person id, so an already revealed contact is never charged again.
+- Checkpoints to disk every 10 reveals, and spends in seniority order so if it does stop early, it stopped on the right people.
+- The API key is stored locally and gitignored, and the server only binds to 127.0.0.1.
+
+The dedupe and suppression logic is in `backend/core/picker.py` and `backend/core/suppression.py` if you want to see how the grouping actually works.
