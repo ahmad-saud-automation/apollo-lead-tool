@@ -1,4 +1,4 @@
-# Apollo Lead Tool
+# Apollo Enricher
 
 Every Apollo credit I spend buys a real firm I don't already have. That's the whole idea.
 
@@ -20,6 +20,8 @@ Before it spends a single credit, it does two things.
 
 **Skips firms I already own.** I point it at my existing leads and it strips those out up front, so I never pay twice for the same company.
 
+**Remembers every contact it has already bought.** This one caught me out for a while. Resume only ever looked inside a single run, so someone revealed in January would be charged for again in February. It now indexes every past run and leaves those people out of the count entirely, and if one slips through it reuses the address it already has instead of buying it again.
+
 In that 2,500 credit example, the thousand duplicate credits simply never get spent. They stay in my account and go towards a thousand more real firms instead. Same budget, more actual companies.
 
 ## Seeing the cost before paying it
@@ -32,23 +34,29 @@ There's a hard credit cap. I set a maximum and it doesn't go past it, and it spe
 
 And it's safe to stop. If a run gets interrupted, restarting never re-charges a contact that was already revealed.
 
-![Preview, what a search would cost before anything is charged](docs/02-preview.png)
+![The search screen, filters on the left and the live count on the right](docs/01-search.png)
 
-That's the screen that matters. It's showing 1,902 people collapsing down to 88 firms after deduping and stripping out the ones I already have, and telling me the exact credit cost. Nothing is charged until I tick the confirm box.
+That's the whole idea in one screen. Filters on the left, and on the right the count updating as I change them: 1,902 people collapsing to 88 firms once duplicates and the ones I already have are stripped out. It tells me the exact credit cost before anything is charged, and nothing is spent until I tick the confirm box.
+
+I laid it out this way because it's how Apollo itself works. You tune filters and watch a number, rather than filling in a form and pressing submit to find out.
+
+Dark works too:
+
+![The same screen in dark](docs/05-search-dark.png)
 
 ## The app
 
-Five screens, in the order you actually use them.
+**Search.** The two pane screen above, with two tabs: build the filters here, or paste an Apollo search URL and have them read out of it. Active filters show as chips you can pull off one at a time. Counting is free.
 
-**New search.** Build the filters by hand, or paste an Apollo search URL and it reads the filters straight out of it.
+You also choose *which* contact you want per firm. By default it takes the most senior person, owner first. Switch it to a specific role and it only returns that role, so asking for finance directors gets you finance directors rather than whoever happens to outrank them.
 
-![New search](docs/01-new-search.png)
+**Reveal.** Spends credits, and only after a cap and an explicit confirmation. Emails come back one at a time in a live feed with a running counter and a stop button, so you can watch a run rather than stare at a spinner. It checkpoints as it goes.
 
-**Preview.** Free. People, then firms, then what it would cost.
+![Revealing, one contact at a time](docs/02-reveal.png)
 
-**Run.** Reveals emails one at a time with a live feed, a credit counter and a stop button. It checkpoints as it goes.
+There's a test mode in the header that simulates the whole reveal without calling Apollo, which is how I check a search behaves before paying for it.
 
-**Results.** The leads, a title mix so I can sanity check who I actually got, and a CSV download.
+**Results.** The leads, a title mix so I can sanity check who I actually got, hit rate, and a CSV download.
 
 ![Results](docs/03-results.png)
 
@@ -58,13 +66,9 @@ Five screens, in the order you actually use them.
 
 ## Running it
 
-```
-cd backend
-python -m pip install -r requirements.txt
-START_BACKEND.bat
-```
+Double-click **`start-app.bat`**. That's it. It installs anything missing, starts the server and opens the browser at `http://127.0.0.1:8000`.
 
-Then open `http://127.0.0.1:8000`. The API is also browsable at `/docs` if you'd rather drive it directly.
+There's also `backend/START_BACKEND.bat`, which is the same thing with auto-reload for when I'm editing the code. The API is browsable at `/docs` if you'd rather drive it directly.
 
 First time through:
 
@@ -91,11 +95,11 @@ The same steps over HTTP if you want to script it:
 
 ## Where it's at
 
-The engine and all five screens are built and working. The backend is a FastAPI service wrapping the search, pick, enrich and suppression logic, and the UI is served by the same process, so it's one thing to start rather than two.
+The engine and the app are built and working. The backend is a FastAPI service wrapping the search, pick, enrich and suppression logic, and the UI is served by the same process, so it's one thing to start rather than two. The colours are Apollo's own, sampled from their site, in a light and a dark theme.
 
 Still on my list: MillionVerifier integration for the addresses Apollo can't verify, and saved filter presets.
 
-The screenshots above are a demo dataset of invented firms, so the interface shows realistic volume without putting real companies or people in a public repo.
+The firms in the screenshots are invented. I'm not putting real companies, directors or revealed addresses in a public repo.
 
 `SPEC.md` has the full design if you want the detail.
 

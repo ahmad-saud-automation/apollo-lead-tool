@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Apollo Lead Tool</title>
+<title>Apollo Enricher</title>
 <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
@@ -11,11 +11,12 @@
 
   <header class="topbar">
     <button class="menubtn" id="menuBtn" title="Show or hide menu" aria-label="Toggle menu">☰</button>
-    <div class="brand"><span class="brand-mark">◆</span> Apollo Lead Tool</div>
+    <div class="brand"><span class="brand-mark">A</span> Apollo Enricher</div>
     <div class="topbar-right">
-      <span class="testmode" title="Credits are only ever spent on the Run screen, after you confirm.">
-        <span class="dot"></span> <span id="keyState">checking key</span>
-      </span>
+      <label class="testmode" title="On, reveals are simulated: no Apollo call and no credits. Use it to watch how a run behaves before paying for one.">
+        <input type="checkbox" id="testMode" checked /> <span class="dot"></span> <span>test mode, no spend</span>
+      </label>
+      <span class="testmode"><span id="keyState">checking key</span></span>
       <button class="themebtn" id="themeBtn" title="Toggle light or dark">◐ Theme</button>
     </div>
   </header>
@@ -25,9 +26,8 @@
   <div class="body">
     <div class="scrim" id="scrim"></div>
     <nav class="side" id="nav">
-      <button class="navb active" data-tab="search" title="New search"><i>⌕</i><span class="nlabel">New search</span></button>
-      <button class="navb" data-tab="preview" title="Preview"><i>◎</i><span class="nlabel">Preview</span></button>
-      <button class="navb" data-tab="run" title="Run"><i>▶</i><span class="nlabel">Run</span></button>
+      <button class="navb active" data-tab="search" title="Search"><i>⌕</i><span class="nlabel">Search</span></button>
+      <button class="navb" data-tab="run" title="Reveal"><i>▶</i><span class="nlabel">Reveal</span></button>
       <button class="navb" data-tab="results" title="Results"><i>☑</i><span class="nlabel">Results</span></button>
       <button class="navb" data-tab="history" title="History"><i>⟳</i><span class="nlabel">History</span></button>
       <button class="navb" data-tab="settings" title="Settings"><i>⚙</i><span class="nlabel">Settings</span></button>
@@ -35,93 +35,153 @@
 
     <main class="content">
 
-      <!-- 1 · New search -->
+      <!-- 1 · Search, two pane like Apollo: filters left, live count and sample right -->
       <section class="panel" data-panel="search">
-        <h1>New search</h1>
-        <p class="lede">Build the search by hand, or paste an Apollo URL and let it read the filters out. Nothing here costs a credit.</p>
+        <div class="workspace">
 
-        <div class="seg" id="srcSeg">
-          <button class="seg-b active" data-src="filters">Build filters</button>
-          <button class="seg-b" data-src="url">Paste Apollo URL</button>
-        </div>
-
-        <div class="form">
-          <label class="fld"><span>Run name</span><input type="text" id="runName" placeholder="putney-accountants-jan" /></label>
-
-          <div id="urlBlock" hidden>
-            <label class="fld"><span>Apollo search URL</span><input type="text" id="apolloUrl" placeholder="https://app.apollo.io/#/people?personTitles[]=owner..." /></label>
-            <div class="btn-row"><button class="btn" id="parseBtn">Read filters from URL</button><span class="muted" id="parseMsg"></span></div>
-          </div>
-
-          <div id="filterBlock">
-            <label class="fld"><span>Job titles to include</span><input type="text" id="fTitles" placeholder="owner, founder, managing partner, director" /></label>
-            <label class="fld"><span>Job titles to exclude</span><input type="text" id="fNotTitles" placeholder="assistant, apprentice, receptionist" /></label>
-            <label class="fld"><span>Locations</span><input type="text" id="fLocations" placeholder="London, United Kingdom" /></label>
-            <div class="grid3">
-              <label class="fld"><span>Company size</span><input type="text" id="fEmployees" placeholder="2,20" /></label>
-              <label class="fld"><span>Keywords</span><input type="text" id="fKeywords" placeholder="accountancy, tax" /></label>
-              <label class="fld"><span>Max pages to scan</span><input type="number" id="fMaxPages" value="60" min="1" max="500" /></label>
+          <aside class="rail">
+            <div class="seg railseg" id="sourceSeg">
+              <button class="seg-b active" data-src="build">Build filters</button>
+              <button class="seg-b" data-src="url">Paste Apollo URL</button>
             </div>
-            <label class="fld"><span>Companies to exclude</span><input type="text" id="fExclude" placeholder="firms you already work with" /></label>
-            <label class="fld switch"><span>Verified emails only</span><input type="checkbox" id="fVerified" checked /></label>
-            <label class="fld"><span>Suppression file <span class="muted">(optional, a CSV of firms you already have)</span></span><input type="text" id="fSuppression" placeholder="C:\path\to\existing-leads.csv" /></label>
-          </div>
-        </div>
 
-        <div class="btn-row">
-          <button class="btn primary" id="previewBtn">Preview, free</button>
-          <span class="muted" id="searchMsg"></span>
+            <label class="fld"><span>Run name</span><input type="text" id="runName" placeholder="putney-accountants-jan" /></label>
+
+            <!-- A: paste an Apollo search URL -->
+            <div id="srcUrl" hidden>
+              <p class="sub">Paste a search you already built inside Apollo. The filters get read out of the URL and used as they are.</p>
+              <label class="fld"><span>Apollo search URL</span><input type="text" id="apolloUrl" placeholder="https://app.apollo.io/#/people?personTitles[]=owner..." /></label>
+              <button class="btn wide" id="parseBtn">Read filters from URL</button>
+              <div class="muted" id="parseMsg" style="margin-top:7px"></div>
+              <p class="hint">Reading the URL fills in the Build filters tab, so you can check and adjust before counting.</p>
+            </div>
+
+            <!-- B: build the filters here -->
+            <div id="srcBuild">
+              <p class="sub">Nothing here costs a credit. Tune until the number on the right looks right.</p>
+
+              <details class="fgroup" open>
+                <summary>Who to target</summary>
+                <div class="inner">
+                  <div class="fld"><span>Which contact per firm</span>
+                    <div class="seg" id="roleModeSeg">
+                      <button class="seg-b active" data-mode="best">Best available</button>
+                      <button class="seg-b" data-mode="specific">A specific role</button>
+                    </div>
+                    <p class="helper" id="roleHelp">Picks the most senior person at each firm, owner first, then founder, managing partner, director and so on.</p>
+                  </div>
+                  <div id="roleSpecific" hidden>
+                    <label class="fld"><span>Only these roles</span><input type="text" id="fTargetTitles" placeholder="finance director, managing director" /></label>
+                    <label class="fld switch"><span>Skip firms that have nobody in that role
+                      <em class="helper">On, you only ever get that exact role. Off, those firms fall back to their most senior contact.</em></span>
+                      <input type="checkbox" id="fStrictRoles" checked /></label>
+                  </div>
+                </div>
+              </details>
+
+              <details class="fgroup" open>
+                <summary>Job titles to search</summary>
+                <div class="inner">
+                  <label class="fld"><span>Include</span><input type="text" id="fTitles" placeholder="owner, founder, managing partner" /></label>
+                  <label class="fld"><span>Exclude</span><input type="text" id="fNotTitles" placeholder="assistant, apprentice" /></label>
+                </div>
+              </details>
+
+              <details class="fgroup" open>
+                <summary>Company</summary>
+                <div class="inner">
+                  <label class="fld"><span>Locations</span><input type="text" id="fLocations" placeholder="London, United Kingdom" /></label>
+                  <label class="fld"><span>Headcount <span class="muted">(a range, or several split by ;)</span></span><input type="text" id="fEmployees" placeholder="2,20; 21,50" /></label>
+                  <label class="fld"><span>Keywords</span><input type="text" id="fKeywords" placeholder="accountancy, tax" /></label>
+                </div>
+              </details>
+
+              <details class="fgroup">
+                <summary>Do not contact</summary>
+                <div class="inner">
+                  <label class="fld switch"><span>Skip contacts I already paid for
+                    <em class="helper" id="revealedHelp">Checks every past run and leaves out anyone already revealed, so the same person is never bought twice.</em></span>
+                    <input type="checkbox" id="fSkipRevealed" checked /></label>
+                  <label class="fld switch"><span>Verified emails only
+                    <em class="helper">Apollo only returns contacts whose email it has already validated. Off widens the pool but lowers deliverability.</em></span>
+                    <input type="checkbox" id="fVerified" checked /></label>
+                  <label class="fld"><span>Companies to skip</span><input type="text" id="fExclude" placeholder="firms you already work with" /></label>
+                  <label class="fld"><span>Suppression file <span class="muted">(a CSV of firms you already own)</span></span><input type="text" id="fSuppression" placeholder="C:\path\to\existing-leads.csv" /></label>
+                </div>
+              </details>
+
+              <details class="fgroup">
+                <summary>Advanced</summary>
+                <div class="inner">
+                  <label class="fld"><span>Max pages to scan <span class="muted">(each page is 100 people, free)</span></span><input type="number" id="fMaxPages" value="60" min="1" max="500" /></label>
+                </div>
+              </details>
+            </div>
+
+            <button class="btn primary wide" id="previewBtn" style="margin-top:12px">Count it, free</button>
+            <div class="muted" id="searchMsg" style="margin-top:8px"></div>
+          </aside>
+
+          <div class="results-pane">
+            <div class="pane-head">
+              <h1>Search</h1>
+              <span class="count-line" id="countLine">Set your filters, then count.</span>
+            </div>
+
+            <div class="activechips" id="activeChips"></div>
+            <div id="previewWarn"></div>
+            <div class="stats" id="previewStats"></div>
+
+            <div class="card" id="previewFunnel" hidden>
+              <div class="card-h">Where the people go</div>
+              <div id="funnel"></div>
+            </div>
+
+            <div class="tablewrap">
+              <table id="sampleTable">
+                <thead><tr><th>Company</th><th>Decision maker</th><th>Title</th><th>Domain</th></tr></thead>
+                <tbody><tr><td colspan="4" class="muted">Run a count to see a sample of the firms you would get.</td></tr></tbody>
+              </table>
+            </div>
+
+            <div class="card" id="spendCard" hidden style="margin-top:13px">
+              <div class="card-h">Before you spend anything</div>
+              <div class="grid3">
+                <label class="fld"><span>Credit cap for this run</span><input type="number" id="maxCredits" value="50" min="1" /></label>
+              </div>
+              <label class="fld switch"><span><b>I confirm</b> this run may spend up to that many Apollo credits
+                <em class="helper" id="confirmHelper">Test mode is on, so this run is simulated and nothing will be charged.</em></span>
+                <input type="checkbox" id="confirmSpend" /></label>
+              <div class="btn-row">
+                <button class="btn primary" id="startRunBtn">Reveal emails</button>
+                <span class="muted" id="previewMsg"></span>
+              </div>
+            </div>
+          </div>
+
         </div>
-        <p class="hint">Comma separate anything with more than one value. Preview never spends a credit, it only counts what a run would cost.</p>
       </section>
 
-      <!-- 2 · Preview -->
-      <section class="panel" data-panel="preview" hidden>
-        <h1>Preview</h1>
-        <p class="lede">What this search would actually cost, before anything is charged.</p>
-        <div class="stats" id="previewStats"></div>
-        <div class="card" id="previewFunnel" hidden>
-          <div class="card-h">Where the people go</div>
-          <div id="funnel"></div>
+      <!-- 2 · Reveal -->
+      <section class="panel pad" data-panel="run" hidden>
+        <h1>Reveal</h1>
+        <div class="simbanner" id="simBanner" hidden>
+          <b>Simulated run.</b> These addresses were built from each contact's name, not fetched from Apollo.
+          Nothing was charged and none of them are verified, so do not mail them. Turn test mode off in the
+          header and run again for real ones.
         </div>
-        <div id="previewWarn"></div>
-        <div class="card">
-          <div class="card-h">Sample of the firms you would get</div>
-          <div class="tablewrap">
-            <table id="sampleTable">
-              <thead><tr><th>Company</th><th>Decision maker</th><th>Title</th><th>Domain</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
-        </div>
-        <div class="card">
-          <div class="card-h">Before you spend anything</div>
-          <div class="grid3">
-            <label class="fld"><span>Credit cap for this run</span><input type="number" id="maxCredits" value="50" min="1" /></label>
-          </div>
-          <label class="fld switch"><span><b>I confirm</b> this run may spend up to that many Apollo credits</span><input type="checkbox" id="confirmSpend" /></label>
-          <div class="btn-row">
-            <button class="btn primary" id="startRunBtn">Reveal emails</button>
-            <span class="muted" id="previewMsg"></span>
-          </div>
-        </div>
-      </section>
-
-      <!-- 3 · Run -->
-      <section class="panel" data-panel="run" hidden>
-        <h1>Run</h1>
         <div class="btn-row">
           <span class="muted" id="runMeta">No run started.</span>
           <button class="btn ghost" id="stopBtn" hidden>Stop</button>
         </div>
         <div class="progress"><div class="bar" id="bar"></div></div>
         <div class="stats" id="runStats"></div>
-        <div class="feed" id="feed"></div>
-        <p class="hint">Every revealed email is checkpointed to disk. If this stops, restarting the same run never re-charges a contact you already paid for.</p>
+        <div class="feed" id="feed"><span class="empty">Nothing running. Start one from the Search tab.</span></div>
+        <p class="hint">Every revealed email is checkpointed to disk. If this stops, restarting never re-charges a contact you already paid for.</p>
       </section>
 
-      <!-- 4 · Results -->
-      <section class="panel" data-panel="results" hidden>
+      <!-- 3 · Results -->
+      <section class="panel pad" data-panel="results" hidden>
         <h1>Results</h1>
         <div class="btn-row">
           <span class="muted" id="resultsCount">No results yet.</span>
@@ -140,8 +200,8 @@
         </div>
       </section>
 
-      <!-- 5 · History -->
-      <section class="panel" data-panel="history" hidden>
+      <!-- 4 · History -->
+      <section class="panel pad" data-panel="history" hidden>
         <h1>History</h1>
         <p class="lede">Every past run. Open one to see its results again, or download the CSV.</p>
         <div class="tablewrap">
@@ -152,8 +212,8 @@
         </div>
       </section>
 
-      <!-- Settings -->
-      <section class="panel" data-panel="settings" hidden>
+      <!-- 5 · Settings -->
+      <section class="panel pad" data-panel="settings" hidden>
         <h1>Settings</h1>
         <p class="lede">Your Apollo key is stored on this machine only, in <code>backend/settings.json</code>, which is gitignored.</p>
         <div class="form">

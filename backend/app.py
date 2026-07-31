@@ -14,7 +14,7 @@ from fastapi.responses import StreamingResponse, FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from core import apollo, store
+from core import apollo, store, revealed
 from core.filters import FilterSet, parse_apollo_url, ACCOUNTING_TAG
 from core.picker import pick_winners
 from core.suppression import load_suppression, apply_suppression
@@ -63,12 +63,16 @@ class PreviewReq(BaseModel):
     apollo_url: str | None = None
     suppression_path: str | None = None
     max_pages: int = 60
+    target_titles: list | None = None      # empty = best available decision maker
+    strict_roles: bool = True              # drop firms with nobody in that role
+    skip_revealed: bool = True             # never re-buy an email from an older run
 
 
 class EnrichReq(BaseModel):
     name: str
     max_credits: int
     confirmed: bool = False
+    test_mode: bool = False      # simulate the reveal, no Apollo call, no credits
 
 
 # ---------------------------------------------------------------- settings
@@ -121,17 +125,28 @@ def preview(req: PreviewReq):
     except apollo.ApolloError as e:
         raise HTTPException(502, str(e))
 
-    winners, backups = pick_winners(people)
+    winners, backups = pick_winners(people, req.target_titles, req.strict_roles)
 
     removed = 0
     if req.suppression_path:
         names, domains = load_suppression(req.suppression_path)
         winners, removed = apply_suppression(winners, names, domains)
 
+    # never pay twice for a contact an earlier run already revealed
+    already = 0
+    if req.skip_revealed:
+        idx = revealed.load_all_revealed(exclude_run=req.name)
+        winners, seen = revealed.split_already_revealed(winners, idx)
+        already = len(seen)
+        backups.extend(seen)
+
     meta = {
         "filters": fs.as_dict(), "total_entries": total,
-        "people": len(people), "firms_before_suppression": len(winners) + removed,
+        "people": len(people),
+        "firms_before_suppression": len(winners) + removed + already,
         "firms": len(winners), "suppressed": removed,
+        "already_revealed": already,
+        "target_titles": req.target_titles or [], "strict_roles": req.strict_roles,
         "status": "previewed", "credits_spent": 0, "warnings": warnings,
     }
     store.save_run(req.name, winners, backups, meta)
@@ -147,28 +162,45 @@ def preview(req: PreviewReq):
 def enrich(req: EnrichReq):
     if not req.confirmed:
         raise HTTPException(400, "Enrichment must be explicitly confirmed.")
-    key = _api_key()
+    reveal_one = _simulate_reveal if req.test_mode else apollo.enrich_one
+    key = "test-mode" if req.test_mode else _api_key()
     run = store.get_run(req.name)
     if not run or not run.get("rows"):
         raise HTTPException(404, "Run not found — preview it first.")
 
+    run["test_mode"] = bool(req.test_mode)      # recorded so results and exports can warn
     winners = run["rows"]
-    prior = store.load_prior_emails(req.name)   # resume: never re-charge
+    prior = store.load_prior_emails(req.name)   # resume this run, never re-charge
     for w in winners:
         p = prior.get(w.get("person_id"))
         if p and p.get("email"):
             w["email"] = p["email"]
             w["email_status"] = p.get("email_status", "")
 
+    # and reuse anything an EARLIER run already paid for, for free
+    reused = 0
+    idx = revealed.load_all_revealed(exclude_run=req.name)
+    for w in winners:
+        if w.get("email"):
+            continue
+        hit = revealed.match(w, idx)
+        if hit and hit.get("email"):
+            w["email"] = hit["email"]
+            w["email_status"] = hit.get("email_status", "")
+            w["email_source"] = "reused from " + hit.get("_run", "an earlier run")
+            reused += 1
+
     def stream():
         spent = 0
+        if reused:
+            yield _sse({"type": "reused", "n": reused})
         for w in winners:
             if w.get("email"):
                 continue
             if spent >= req.max_credits:
                 yield _sse({"type": "capped", "cap": req.max_credits}); break
             try:
-                apollo.enrich_one(w, key)
+                reveal_one(w, key)
             except apollo.ApolloError as e:
                 yield _sse({"type": "error", "who": w["director_name"], "msg": str(e)})
                 continue
@@ -192,6 +224,22 @@ def enrich(req: EnrichReq):
 
 def _sse(obj):
     return f"data: {json.dumps(obj)}\n\n"
+
+
+def _simulate_reveal(row: dict, _key: str) -> None:
+    """No-spend stand-in for apollo.enrich_one. Builds a plausible address from the
+    name and domain so the live feed can be watched without touching Apollo.
+    Every fourth contact misses, which is roughly what a real run looks like.
+    The address is INVENTED and is marked simulated so it never gets mailed."""
+    _simulate_reveal.n = getattr(_simulate_reveal, "n", 0) + 1
+    parts = (row.get("director_name") or "").lower().split()
+    domain = row.get("domain") or "example.com"
+    if _simulate_reveal.n % 4 == 0 or len(parts) < 2:
+        row["email"] = "email_not_unlocked@" + domain
+        row["email_status"] = ""
+        return
+    row["email"] = f"{parts[0]}.{parts[-1]}@{domain}"
+    row["email_status"] = "simulated"
 
 
 def _save(name, winners, run, spent, done=False):
@@ -223,6 +271,12 @@ def export(name: str):
     if not os.path.exists(path):
         raise HTTPException(404, "No leads file for this run.")
     return FileResponse(path, filename=f"{name}_leads.csv", media_type="text/csv")
+
+
+@app.get("/api/revealed")
+def revealed_stats():
+    """How many contacts previous runs already paid for. These are reused free."""
+    return revealed.stats()
 
 
 @app.get("/api/health")
